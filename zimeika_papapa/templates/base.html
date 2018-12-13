@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>papapa</title>
+</head>
+<body>
+<div>
+    <li><a href="/list/1">全部</a></li>
+    <li><a href="/list/2">游戏</a></li>
+    <li><a href="/list/3">军事</a></li>
+    <li><a href="/list/4">历史</a></li>
+    <li><a href="/list/5">健康</a></li>
+    <li><a href="/list/6">搞笑</a></li>
+</div>
+<div>
+    {% for i in data%}
+        {% for k, v in i.items %}
+    <tr><a href="{{ v }}" >{{ k}}</a></tr><br>
+            {% endfor %}
+{% endfor %}
+</div>
+</body>
+</html>
