@@ -1,0 +1,275 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <link rel="stylesheet" href="https://a.amap.com/jsapi_demos/static/demo-center/css/demo-center.css" />
+    <title>地图显示</title>
+    <style>
+        html,
+        body,
+        #container {
+          width: 100%;
+          height: 100%;
+        }
+
+        .container-panel{
+            position: absolute;
+            top: 50px;
+            right: 50px;
+        }
+
+        .container-1{
+            overflow: auto;
+            width: 280px;
+            text-align: left;
+            background-color: lightslategray;
+            color: white;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        #panel {
+            position: fixed;
+            background-color: white;
+            max-height: 90%;
+            overflow-y: auto;
+            top: 10px;
+            left: 10px;
+            width: 280px;
+        }
+        #panel .amap-call {
+            background-color: #009cf9;
+            border-top-left-radius: 4px;
+   	        border-top-right-radius: 4px;
+        }
+        #panel .amap-lib-transfer {
+	        border-bottom-left-radius: 4px;
+   	        border-bottom-right-radius: 4px;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+<body>
+<div id="container"></div>
+<div id="panel"></div>
+<div class ="container-panel">
+    <div class="container-1">
+        <label>选择工作地点：</label>
+        <input id="workLocation" type="text" />
+    </div>
+    <div class="container-1">
+        <label>选择通勤方式：</label>
+        <input type="radio" name="vehicle" value="SUBWAY,BUS" onClick="takeBus(this)"/>公交+地铁
+        <input type="radio" name="vehicle" value="SUBWAY" onClick="takeSubway(this)"/>地铁
+    </div>
+    <div class="container-1">
+        <label>导入房源文件：</label>
+        <input type="file" name="file" onchange="importRentInfo(this)">
+    </div>
+</div>
+<div id="transfer-panel"></div>
+<!-- 加载地图JSAPI脚本 -->
+<script src="http://cache.amap.com/lbs/static/jquery-1.9.1.js"></script>
+<script src="http://cache.amap.com/lbs/static/jquery.range.js"></script>
+<script src="http://cache.amap.com/lbs/static/es5.min.js"></script>
+<script src="https://a.amap.com/jsapi_demos/static/demo-center/js/demoutils.js"></script>
+<script src="https://webapi.amap.com/maps?v=1.4.10&key=3d4e3e13c6dcdd1ea300058f74794309&plugin=AMap.Autocomplete,AMap.PlaceSearch,AMap.ArrivalRange,AMap.Geocoder,AMap.Scale,AMap.Geocoder,AMap.Transfer,AMap.Autocomplete，AMap.Driving"></script>
+<script src="https://pages.anjukestatic.com/usersite/site/js/jquery/1.11.3/jquery-underscore.min.js"></script>
+<script>
+    var map = new AMap.Map('container', {
+        resizeEnable: true, //是否监控地图容器尺寸变化
+        zoom:15, //初始化地图层级
+        center: [114.027825,22.660465] //初始化地图中心点
+    });
+
+      //输入提示
+    var autoOptions = {
+        input: "workLocation"
+    };
+    var auto = new AMap.Autocomplete(autoOptions);
+    var placeSearch = new AMap.PlaceSearch({
+        map: map
+    });  //构造地点查询类
+
+    var arrivalRange = new AMap.ArrivalRange();
+    var x, y, t, vehicle = "SUBWAY,BUS";
+    var workAddress, workMarker;
+    var rentMarkerArray = [];
+    var polygonArray = [];
+    var amapTransfer;
+
+    // AMap.event.addListener(auto, "select", select);//注册监听，当选中某条记录时会触发
+    // function select(e) {
+    //     placeSearch.setCity(e.poi.adcode);
+    //     placeSearch.search(e.poi.name);  //关键字查询查询
+    //     workAddress = e.poi.name;
+    // }
+
+    AMap.event.addListener(auto, "select", workLocationSelected);
+
+    function workLocationSelected(e) {
+        workAddress = e.poi.name;
+        loadWorkLocation();
+    }
+
+
+
+    var infoWindow = new AMap.InfoWindow({
+        offset: new AMap.Pixel(0, -30)
+    });
+
+    var auto = new AMap.Autocomplete({
+        input: "work-location"
+    });
+    var scale = new AMap.Scale();
+    map.addControl(scale);
+
+
+    <!--选择公交+地铁方式-->
+    function takeBus(radio) {
+        vehicle = radio.value;
+        loadWorkLocation()
+    }
+
+    <!--选择地铁方式-->
+    function takeSubway(radio) {
+        vehicle = radio.value;
+        loadWorkLocation()
+    }
+
+    <!--选择房源文件后，触发加载房源地址的事件-->
+    function importRentInfo(fileInfo) {
+
+        var file = fileInfo.files[0].name;
+        loadRentLocationByFile(file);
+    }
+
+    <!--根据加载的文件，在地图上描点-->
+    function loadRentLocationByFile(fileName) {
+        delRentLocation();
+        var rent_locations = new Set();
+        $.get(fileName, function (data) {
+            data = data.split("\n");
+
+            data.forEach(function (item, index) {
+                rent_locations.add(item.split(",")[1]);
+            });
+
+            rent_locations.forEach(function (element, index) {
+                addMarkerByAddress(element);
+            });
+        });
+    }
+
+    <!--从内存中删除上一次读取房源文件里面的数据-->
+    function delRentLocation() {
+        if (rentMarkerArray) map.remove(rentMarkerArray);
+        rentMarkerArray = [];
+    }
+
+    function delWorkLocation() {
+        if (polygonArray) map.remove(polygonArray);
+        if (workMarker) map.remove(workMarker);
+        polygonArray = [];
+    }
+
+
+
+
+
+
+
+    function loadWorkLocation() {
+        delWorkLocation();
+        var geocoder = new AMap.Geocoder({
+            city: '深圳',
+            radius: 500
+        });
+
+
+        geocoder.getLocation(workAddress, function(status, result) {
+            if (status === "complete" && result.info === 'OK') {
+                var geocode = result.geocodes[0];
+                x = geocode.location.getLng();
+                y = geocode.location.getLat();
+                loadWorkMarker(x, y);
+                loadWorkRange(x, y, 60, "#3f67a5", vehicle);
+                map.setZoomAndCenter(12, [x, y]);
+            }
+        })
+    }
+
+    function loadWorkMarker(x, y, locationName) {
+        workMarker = new AMap.Marker({
+            map: map,
+            title: locationName,
+            icon: 'http://webapi.amap.com/theme/v1.3/markers/n/mark_r.png',
+            position: [x, y]
+
+        });
+    }
+
+
+    function loadWorkRange(x, y, t, color, v) {
+        arrivalRange.search([x, y], t, function(status, result) {
+            if (result.bounds) {
+                for (var i = 0; i < result.bounds.length; i++) {
+                    var polygon = new AMap.Polygon({
+                        map: map,
+                        fillColor: color,
+                        fillOpacity: "0.4",
+                        strokeColor: color,
+                        strokeOpacity: "0.8",
+                        strokeWeight: 1
+                    });
+                    polygon.setPath(result.bounds[i]);
+                    polygonArray.push(polygon);
+                }
+            }
+        }, {
+            policy: v
+        });
+    }
+
+    <!--根据房源地址在地图上展示-->
+    function addMarkerByAddress(address) {
+        var geocoder = new AMap.Geocoder({
+            city: "深圳",
+            radius: 1000
+        });
+        geocoder.getLocation(address, function(status, result) {
+            if (status === "complete" && result.info === 'OK') {
+                var geocode = result.geocodes[0];
+                rentMarker = new AMap.Marker({
+                    map: map,
+                    title: address,
+                    icon: 'http://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+                    position: [geocode.location.getLng(), geocode.location.getLat()]
+                });
+                rentMarkerArray.push(rentMarker);
+
+                rentMarker.content = "<div>房源：<a target = '_blank' href='http://sz.zu.fang.com/house/" + address + "'>" + address + "</a><div>"
+                rentMarker.on('click', function(e) {
+                    infoWindow.setContent(e.target.content);
+                    infoWindow.open(map, e.target.getPosition());
+                    if (amapTransfer) amapTransfer.clear();
+                    amapTransfer = new AMap.Transfer({
+                        map: map,
+                    policy: AMap.TransferPolicy.LEAST_TIME,
+                    city: "深圳市",
+                    panel: 'panel'
+                });
+                amapTransfer.search([{
+                    keyword: workAddress
+                }, {
+                    keyword: address
+                }], function(status, result) {console.log(status),console.log(result)})
+            });
+        }
+    })
+}
+
+
+</script>
