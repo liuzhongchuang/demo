@@ -1,0 +1,68 @@
+SQL在新建查询里面输入的命令，这里的上一步要先打开这个表
+
+select lastname, salary, age from person;
+
+select * from person
+
+select DISTINCT address from person;
+select DISTINCT firstname from person;
+select DISTINCT address, firstname from person;
+
+
+select * from person where address = '广东'
+select * from person where salary > 7000 ; //查询工资大于7000的人
+select * from person where salary < 10000 ; //查询工资小于10000的人
+select * from person where address != '广东' ; //查询不在广东的人
+select * from person where address <> '广东' ; //查询不在广东的人
+select * from person where address like '%广%' ; //查询住址里面包含 广 字的，%广 表示匹配以广结束、广%匹配以广开始，%广%匹配只要包含广
+
+select * from person where age between 25 and 30;
+select * from person where age >= 25 and age <= 30;
+
+
+select * from person where id = 3 and pwd = 'admin';  
+
+select * from person where id = 1 and pwd = 00 or 1 = 1 ;  
+
+select * from person where age < 30 order by salary asc; // asc表示升序排列
+select * from person where age < 30 order by salary desc; // desc表示降序排列
+
+
+select address, sum(salary)  from person group by address;
+
+
+insert into person values(NULL,'xie', 'xun', '湖南', 15000, 60, '123')
+insert into person (firstname, lastname, address, salary, pwd) values('li','bai','湖北', 3000, '123456')
+insert into person select  NULL,firstname, lastname, address,salary, age, pwd from person where id = 6 
+
+#修改
+update person set age = 35 , pwd ='admin' where id = 7
+
+#删除
+delete from person where id = 8
+
+select * from person;
+#求平均数avg
+select avg(salary) from person;
+#求最大值
+select max(age) from person;
+#求最小值
+select min(age) from person;
+#对两个不同的字段一起做排序
+select * from person ORDER BY age asc, salary asc;
+#'取别名,使用as， 当然as也可以省略'
+select salary as '工资', age as '年龄' from person;
+#查询工资最低的人(下面语句有问题，只能出一条)
+select id,firstname,lastname,address, min(salary) salary, age, pwd from person;
+# 使用子查询查询工资最低的人
+select * from person where salary = (select min(salary) from person)
+# 查询出在广东和湖北的人
+select * from person where address in('广东','湖北')
+# 查询出不在广东和湖北的人
+select * from person where address not in('广东','湖北')
+
+
+
+
+
+
